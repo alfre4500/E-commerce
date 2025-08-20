@@ -13,7 +13,26 @@ const generateTokens = (userId) =>{
 
 return { acessToken, refreshToken} 
 
+};
+
+const storeRefreshToken =  async (userId,refreshToken) =>{
+    await redis.set(`refresh_token:${userId}` , refreshToken , "EX" , 7*24*60*60);
+
 }
+const setCookies = (res , acessToken , refreshToken) =>{
+    res.cookie ("acessToken" , acessToken , {
+        httpOnly: true , //previene ataques xxs
+        secure:process.env.NODE_ENV === "production",
+        sameSite:"strict", //previene ataques CSRF
+        maxAge: 15*60*1000,
+    });
+     res.cookie ("refreshToken" , refreshToken , {
+        httpOnly: true , //previene ataques xxs
+        secure:process.env.NODE_ENV === "production",
+        sameSite:"strict", //previene ataques CSRF
+        maxAge: 7*24*60*1000,
+});
+ };
 
 export const signup =  async (req , res)=> {
     const {email , password , name} = req.body
@@ -26,6 +45,7 @@ try {
     const user = await User.create({name,email,password});
 
    const {acessToken, RefreshToken} = generateTokens (user._id)
+   await storeRefreshToken(user._id, refreshToken);
 
     res.status(201).json({user,message:"el usuario se creo existosamente"});
 } catch (error) {
